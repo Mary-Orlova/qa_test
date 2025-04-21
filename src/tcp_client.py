@@ -21,26 +21,32 @@ def request_file(filename: str) -> bool:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((HOST, PORT))
-            logger.debug(f"Подключено к серверу {HOST}:{PORT}")
 
+            # Отправляем имя файла только один раз
             client_socket.sendall(filename.encode())
-            initial_data: bytes = client_socket.recv(BUFFER_SIZE)
+
+            # Получаем первый пакет
+            initial_data = client_socket.recv(BUFFER_SIZE)
 
             if initial_data == b"File not found":
-                logger.error(f"Файл {filename} не найден на сервере")
+                logger.error(f"Файл {filename} не найден")
+                return False
+            elif initial_data == b"Empty filename":
+                logger.error("Сервер отклонил пустое имя файла")
                 return False
 
             with open(f"received_{filename}", "wb") as file:
+                file.write(initial_data)  # Пишем первый пакет
                 while True:
-                    chunk: bytes = client_socket.recv(BUFFER_SIZE)
+                    chunk = client_socket.recv(BUFFER_SIZE)
                     if not chunk:
                         break
                     file.write(chunk)
 
-            logger.info(f"Файл получен и сохранен как received_{filename}")
+            logger.info(f"Файл получен: received_{filename}")
             return True
     except Exception as e:
-        logger.error(f"Ошибка при работе клиента: {str(e)}", exc_info=True)
+        logger.error(f"Ошибка: {str(e)}", exc_info=True)
         return False
 
 

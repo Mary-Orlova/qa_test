@@ -22,7 +22,12 @@ def handle_client(conn: socket.socket, addr: Tuple[str, int]) -> None:
     :return: None
     """
     try:
-        filename: str = conn.recv(BUFFER_SIZE).decode()
+        filename: str = conn.recv(BUFFER_SIZE).decode().strip()
+        if not filename:
+            logger.error("Получено пустое имя файла")
+            conn.sendall(b"Empty filename")
+            return
+
         logger.info(f"Запрос файла '{filename}' от {addr}")
 
         if not os.path.exists(filename):
