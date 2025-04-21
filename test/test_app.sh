@@ -76,7 +76,6 @@ main() {
 
     test_tcp && test_udp
 
-    echo -e "\nВсе тесты пройдены успешно!"
     exit 0
 }
 
