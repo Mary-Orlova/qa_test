@@ -3,7 +3,7 @@
 import socket
 from typing import Tuple
 
-from .logging_config import setup_custom_logger
+from logging_config import setup_custom_logger
 
 logger = setup_custom_logger(__name__)
 
