@@ -44,5 +44,5 @@ jobs:
           pip install -r requirements.txt
       - name: Run network tests
         run: |
-          chmod +x test/test_app.sh
-          cd test && ./test_app.sh
+          chmod +x test/test_udp_app.sh
+          cd test && ./test_udp_app.sh
