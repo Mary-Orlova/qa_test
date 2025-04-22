@@ -1,58 +1,59 @@
-"""UDP-клиент получения файлов с сервера."""
-
+"""UDP-клиент для загрузки файла."""
 import socket
 import sys
-
 from logging_config import setup_custom_logger
 
 logger = setup_custom_logger(__name__)
 
-HOST = "127.0.0.1"  # Если есть не локальный адрес - изменить адрес хоста
-PORT = 9090  # Если нужно открыть на другом порте - изменить адрес порта
-BUFFER_SIZE = 4096  #  Стандартная часть TCP данных, разделённая для эффективной обработки, хранения или передачи.
+HOST = "127.0.0.1"  # Должен совпадать с серверным
+PORT = 9090  # Порт должен совпадать с серверным
+BUFFER_SIZE = 4096  # Размер буфера
 
 
-def receive_file(filename: str) -> bool:
-    """
-    UDP-функция получения файла.
-    :param: filename: имя файла
-    :param: bool: True при успешном получении, иначе False
-    """
+def receive_file(sock: socket.socket, filename: str) -> None:
+    """Получение файла от сервера."""
+    received_filename = f"received_{filename}"
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
-            client_socket.sendto(filename.encode(), (HOST, PORT))
-
-            with open(f"received_{filename}", "wb") as file:
-                while True:
-                    data, addr = client_socket.recvfrom(BUFFER_SIZE)
-                    if data == b"File not found":
-                        logger.error("[ERROR] Файл не найден на сервере")
-                        return False
-                    if data == b"__EOF__":
-                        break
-                    file.write(data)
-
-            logger.info(f"[SUCCESS] Сохранен  файл received_{filename}")
-            return True
-    except Exception as error:
-        logger.exception(f"[ERROR] Возникло исключение в receive_file {error}")
-        return False
+        with open(received_filename, "wb") as file:
+            while True:
+                data, _ = sock.recvfrom(BUFFER_SIZE)
+                if data == b"__EOF__":
+                    break
+                file.write(data)
+        logger.info(f"Файл получен: {received_filename}")
+    except Exception as e:
+        logger.error(f"Ошибка получения файла: {str(e)}")
+        raise
 
 
 def main() -> None:
-    """
-    Функция входа в приложение
-    """
-
-    # Проверка кол-ва аргументов командной строки, переданных скрипту.
+    """Основная функция клиента."""
     if len(sys.argv) != 2:
-        logger.critical(
-            "Использование: python udp_client.py не состоялось: Проверьте sys.argv"
-        )
+        logger.critical("Требуется имя файла: python udp_client.py <filename>")
         sys.exit(1)
 
-    success: bool = receive_file(sys.argv[1])
-    sys.exit(0 if success else 1)
+    filename = sys.argv[1].strip()  # Удаляем пробелы
+    if not filename:  # Защита от пустых имен
+        logger.critical("Имя файла не может быть пустым")
+        sys.exit(1)
+
+    logger.info(f"Запрос файла: {filename}")
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(5.0)
+
+            # Отправляем имя файла (кодируем строку!)
+            sock.sendto(filename.encode(), (HOST, PORT))
+
+            # Принимаем файл
+            receive_file(sock, filename)
+    except socket.timeout:
+        logger.error("Таймаут ожидания данных от сервера")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Критическая ошибка: {str(e)}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ UDP_PORT=9090 # для UDP
 cleanup() {
     echo "Очистка ресурсов..."
     [[ $SERVER_PID -gt 0 ]] && kill -SIGTERM "$SERVER_PID" 2>/dev/null || true
-    rm -f "$RECEIVED_FILE"
+    rm -f "$RECEIVED_FILE" "src/$SERVER_FILE" "src/received_$SERVER_FILE" 2>/dev/null
 }
 
 trap cleanup EXIT INT TERM HUP
@@ -55,10 +55,21 @@ wait_for_udp_port() {
 test_udp() {
     echo -e "\n=== Запуск UDP теста ==="
 
+    # Жесткая очистка порта перед запуском
+    sudo pkill -f "python3 udp_server.py" 2>/dev/null || true
+    sudo fuser -k 9090/udp 2>/dev/null || true
+    sleep 1
+
+    # Копируем файл в директорию сервера
+    cp "$TEST_FILE" "src/$SERVER_FILE" || {
+        echo "[ERROR] Не удалось скопировать файл в src/"
+        return 1
+    }
+
     # Запуск сервера
-    python3 src/udp_server.py &
+    (cd src && python3 udp_server.py) &
     SERVER_PID=$!
-    sleep 2
+    sleep 3  # Увеличиваем задержку для гарантированного старта
 
     # Проверка порта
     if ! wait_for_udp_port "$UDP_PORT"; then
@@ -66,13 +77,24 @@ test_udp() {
         return 1
     fi
 
-    # Запуск клиента (запрашиваем имя файла БЕЗ суффикса)
-    if ! python3 src/udp_client.py "${SERVER_FILE}"; then
+    # Запуск клиента
+    if ! (cd src && sleep 0.5 && python3 udp_client.py "$SERVER_FILE"); then
         echo "[ERROR] Ошибка UDP клиента"
         return 1
     fi
 
-    # Верификация контрольных сумм
+    # Переносим полученный файл
+    if [[ -f "src/received_$SERVER_FILE" ]]; then
+        mv "src/received_$SERVER_FILE" "$RECEIVED_FILE" || {
+            echo "[ERROR] Не удалось переместить полученный файл"
+            return 1
+        }
+    else
+        echo "[ERROR] Файл 'src/received_$SERVER_FILE' не найден"
+        return 1
+    fi
+
+    # Верификация
     local original_hash=$(shasum -a 256 "$TEST_FILE" | cut -d' ' -f1)
     local received_hash=$(shasum -a 256 "$RECEIVED_FILE" | cut -d' ' -f1)
 
