@@ -13,5 +13,11 @@ test/
 **Ветка tcp:**
 src/tcp-server и tcp-client.
 
+<img width="650" alt="Снимок экрана 2025-04-22 в 01 59 30" src="https://github.com/user-attachments/assets/86e62fc9-7d5a-4cac-98a9-51b4bff95ebb" />
+
+
+
 **Ветка udp:**
 src/udp-server и udp-client.
+
+<img width="650" alt="Снимок экрана 2025-04-22 в 02 59 52" src="https://github.com/user-attachments/assets/c25e6536-d896-4037-a271-a39980796368" />
